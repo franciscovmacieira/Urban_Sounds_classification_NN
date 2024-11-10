@@ -2,6 +2,9 @@ import numpy as np
 import librosa
 import os
 import pandas as pd
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
 
 def uniform_duration(sr, audio):
     target_length = 4 * sr
@@ -72,3 +75,35 @@ def feature_extraction(audio_files, features_list, columns):
     
     df = pd.DataFrame(features_list, columns=columns)
     df.to_csv("feature_extraction.csv", index=False)
+
+def add_target_column(features_csv, target_csv):
+    target_csv = pd.read_csv(target_csv)
+    features_csv = pd.read_csv(features_csv)
+    target_csv['file_id'] = target_csv['slice_file_name'].str.replace(".wav", "", regex=False)
+    merged_csv = pd.merge(features_csv, target_csv[['file_id', 'salience', 'class']], on="file_id", how="left")
+    merged_csv.to_csv("feature_extraction.csv", index=False)
+    return merged_csv
+
+def perform_pca(csv_file, target_column):
+
+    X = csv_file
+    X = X.drop(columns=[target_column, 'file_id', 'fold'])
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    explained_variance_ratios = []
+
+    for i in range(1, X_scaled.shape[1]+1):
+        pca = PCA(n_components=i)
+        pca.fit(X_scaled)
+        explained_variance_ratios.append(pca.explained_variance_ratio_.sum())
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(range(1, X_scaled.shape[1]+1), explained_variance_ratios, marker='o', linestyle='-')
+    plt.xlabel('Nº de componentes')
+    plt.ylabel('Variância Explicada Cumulativa')
+    plt.title('PCA')
+    plt.grid()
+    plt.show()
+
+
+
